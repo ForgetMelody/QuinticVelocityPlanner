@@ -1,0 +1,21 @@
+
+publish_rate: 50 #hz
+tolerance: 0.1 # meters
+
+#SPEED
+max_vel: 2.3 # m/s
+
+# axis
+# 默认向前为x，向左为y，reverse为反向
+reverse_x: False
+reverse_y: False
+
+#topics
+odom_topic: "odom"
+cmd_topic: "/cmd_vel"
+target_topic: "/target_point"
+
+relative_target: False
+speed_offset_rate: 1 #控制速度与真实速度的误差比例
+time_step: 0.2
+max_path_time: 20.0 #s

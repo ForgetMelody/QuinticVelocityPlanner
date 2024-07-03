@@ -1,0 +1,7 @@
+<launch>
+    <rosparam command="load" file="$(find planner)/config/config.yaml" />
+    <node pkg="planner" type="test_virtual_odom.py" name="virtual_odom_node" output="screen"/>
+    <node pkg="planner" type="navigation_controller.py" name="planner_node" output="screen"/>
+    <!-- rviz -->
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find planner)/config/rviz.rviz"/>
+</launch>
