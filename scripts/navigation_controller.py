@@ -9,6 +9,7 @@ from std_msgs.msg import String
 from tf.transformations import euler_from_quaternion
 import numpy as np
 
+
 class PolynomialQuintic:
     def __init__(self, t0, t1, q0, q1, v0=0.0, v1=0.0, a0=0.0, a1=0.0):
         coeffs = self.__ComputeQuinticCoeffs(t0, t1, q0, q1, v0, v1, a0, a1)
@@ -38,6 +39,8 @@ class NavigationController:
         self.max_vel = rospy.get_param("max_vel")
         self.reverse_x = rospy.get_param("reverse_x")
         self.reverse_y = rospy.get_param("reverse_y")
+        self.reversed_x_ = -1 if self.reverse_x else 1
+        self.reversed_y_ = -1 if self.reverse_y else 1
         self.tolerance = rospy.get_param('tolerance')
         self.time_step = rospy.get_param('time_step')
         self.relative_target = rospy.get_param("relative_target")
@@ -79,14 +82,14 @@ class NavigationController:
         orientation_q = msg.pose.pose.orientation
         orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
         (_, _, self.yaw) = euler_from_quaternion(orientation_list)
+        print("yaw:",self.yaw)
         if self.target_point is not None:
             self.current_distance = math.sqrt((self.target_point.x - self.current_position.x) ** 2 + (self.target_point.y - self.current_position.y) ** 2)
 
     def target_callback(self, msg:PoseStamped):
         # update start point and target point
-        self.start_point = Point(self.current_position.x, self.current_position.y, 0)
         self.target_point = msg.pose.position
-        print("yaw:",self.yaw)
+        self.start_point = Point(self.current_position.x, self.current_position.y, 0)
         if self.relative_target:
             self.target_point.x += self.start_point.x
             self.target_point.y += self.start_point.y
@@ -94,12 +97,12 @@ class NavigationController:
         self.total_distance = math.sqrt((self.target_point.x - self.start_point.x) ** 2 + (self.target_point.y - self.start_point.y) ** 2)
         self.current_distance = math.sqrt((self.target_point.x - self.current_position.x) ** 2 + (self.target_point.y - self.current_position.y) ** 2)
         #stop previous navigation
-        while self.navigation_thread and self.navigation_thread.is_alive():
-            if self.las_time is None or (rospy.Time.now().to_sec() - self.las_time) > 0.3:
-                self.stop_flag = True
-                rospy.sleep(0.1)
-            else:
-                return
+        while self.navigation_thread and self.navigation_thread.is_alive(): 
+            self.stop_flag = True
+            # 发 0 坐标时停止导航
+        if self.target_point.x ==0 and self.target_point.y == 0 and self.target_point.z == 0:
+            rospy.loginfo("terminate navigation..")
+            return
         print("start new navigation: ({}, {}) -> ({}, {})".format(self.start_point.x, self.start_point.y, self.target_point.x, self.target_point.y))
         self.navigation_thread = threading.Thread(target=self.navigate_to_target)
         self.las_time = rospy.Time.now().to_sec()
@@ -107,20 +110,24 @@ class NavigationController:
 
 
     def navigate_to_target(self):
+        self.stop_flag = False
         rate = rospy.Rate(self.publish_rate)  # 100 Hz
         # t_est = self.current_distance / 2.0 # 2 m /s
         qx0,qx1 = self.current_position.x,self.target_point.x
         qy0,qy1 = self.current_position.y,self.target_point.y
-        self.total_distance = math.sqrt((self.target_point.x - self.start_point.x) ** 2 + (self.target_point.y - self.start_point.y) ** 2)
+
+        print("path_distance:",self.total_distance)
         if self.total_distance < 0.001:
             self.stop_robot()
             self.publish_finish_msg()
             return
+
         vx0,vx1 = self.vel_x,0
         vy0,vy1 = self.vel_y,0
         a0,a1 = 0,0
         t_est = (self.total_distance * 3) ** (1/3) #预估一个较快的大概的速
         start_time = rospy.Time.now().to_sec()
+
         while True:
             t0,t1 = 0,t_est
             xploy = PolynomialQuintic(t0,t1,qx0,qx1,vx0,vx1,a0,a1)
@@ -140,15 +147,13 @@ class NavigationController:
         print("plan_time_cost:",rospy.Time.now().to_sec()-start_time)
         print("path_time:",t_est)
         # print("qx0,qx1,qy0,qy1,vx0,vx1,vy0,vy1,a0,a1:",qx0,qx1,qy0,qy1,vx0,vx1,vy0,vy1,a0,a1)
-        reversed_x_ = -1 if self.reverse_x else 1
-        reversed_y_ = -1 if self.reverse_y else 1
-        # 速度限制
+       # 速度限制
         
         for i in range(len(ts)):
-            if i > 30 and self.stop_flag:
+            if self.stop_flag:
                 self.stop_flag = False
                 break
-            # Calculate rotation matrix based on current yaw
+            # 根据yaw角计算机器人坐标系下的速度
             cos_yaw = np.cos(self.yaw)
             sin_yaw = np.sin(self.yaw)
             rotation_matrix = np.array([[cos_yaw, sin_yaw],
@@ -158,14 +163,16 @@ class NavigationController:
             local_vel = np.array([vx[i], vy[i]])
             global_vel = rotation_matrix @ local_vel
 
+            # 发布 从世界系转换到机器人坐标系的速度
             cmd_vel = Twist()
-            cmd_vel.linear.x = global_vel[0]*self.speed_offset_rate*reversed_x_
-            cmd_vel.linear.y = global_vel[1]*self.speed_offset_rate*reversed_y_
+            cmd_vel.linear.x = global_vel[0]*self.speed_offset_rate*self.reversed_x_
+            cmd_vel.linear.y = global_vel[1]*self.speed_offset_rate*self.reversed_y_
             cmd_vel.linear.z = 0
             cmd_vel.angular.x = 0
             cmd_vel.angular.y = 0
             cmd_vel.angular.z = 0
             self.cmd_vel_pub.publish(cmd_vel)
+            # 更新速度值
             self.vel_x = vx[i]
             self.vel_y = vy[i]
             # rospy.loginfo("cmd_vel: ({}, {})".format(cmd_vel.linear.x, cmd_vel.linear.y))
