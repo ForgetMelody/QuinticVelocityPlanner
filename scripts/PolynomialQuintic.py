@@ -1,8 +1,9 @@
 import numpy as np
 import time
 class PolynomialQuintic:
-    def __init__(self, t0, q0, q1, v0=0.0, v1=0.0, a0=0.0, a1=0.0, max_acc=None, max_vel=None):
-        self.t0 = t0
+    def __init__(self, tmax, q0, q1, v0=0.0, v1=0.0, a0=0.0, a1=0.0, max_acc=None, max_vel=None):
+        self.t0 = 0
+        self.tmax = tmax
         self.q0 = q0
         self.q1 = q1
         self.v0 = v0
@@ -59,7 +60,7 @@ class PolynomialQuintic:
     def optimize_time(self):
         # 使用二分法优化时间
         start_time = time.time()
-        T_min, T_max = 0.1, 10.0  # 初始时间范围
+        T_min, T_max = 0.1, self.tmax  # 初始时间范围
         tolerance = 1e-3  # 容差
         while T_max - T_min > tolerance:
             T_mid = (T_min + T_max) / 2
