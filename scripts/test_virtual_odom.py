@@ -2,7 +2,7 @@
 
 import rospy
 import tf
-from geometry_msgs.msg import Twist, Point, Quaternion,PoseStamped,PoseWithCovarianceStamped
+from geometry_msgs.msg import Twist, Point, Quaternion,PoseStamped,PoseWithCovarianceStamped,PolygonStamped
 from nav_msgs.msg import Odometry,Path
 from std_msgs.msg import Header
 import math
@@ -41,7 +41,7 @@ class VirtualOdometry:
     def cmd_vel_callback(self, msg):
         self.vx = msg.linear.x
         self.vy = msg.linear.y
-        self.vth = msg.angular.z
+        self.vth = msg.linear.z
 
     def rviz_pose_callback(self, msg:PoseWithCovarianceStamped):
         self.x = msg.pose.pose.position.x
@@ -109,6 +109,7 @@ class VirtualOdometry:
         pose_stamped.pose = odom.pose.pose
         self.path.poses.append(pose_stamped)
         self.path_pub.publish(self.path)
+
 
     def run(self):
         rate = rospy.Rate(self.rate)

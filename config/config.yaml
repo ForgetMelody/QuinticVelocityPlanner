@@ -4,8 +4,6 @@ tolerance: 0.1 # meters
 
 #SPEED
 max_vel: 2.3 # m/s
-max_vel_x: 2.3
-max_vel_y: 2.3
 # axis
 # 默认向前为x，向左为y，reverse为反向
 reverse_x: False
