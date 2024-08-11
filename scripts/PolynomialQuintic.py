@@ -12,13 +12,14 @@ class PolynomialQuintic:
         self.a1 = a1
         self.max_acc = max_acc
         self.max_vel = max_vel
+        self.poly = 0
 
         # 优化时间跨度
         self.t1 = self.optimize_time()
         
         # 计算五次多项式的系数
-        coeffs = self.ComputeQuinticCoeffs(self.t0, self.t1, self.q0, self.q1, self.v0, self.v1, self.a0, self.a1)
-        self.poly = np.poly1d(coeffs[::-1])
+        # coeffs = self.ComputeQuinticCoeffs(self.t0, self.t1, self.q0, self.q1, self.v0, self.v1, self.a0, self.a1)
+        # self.poly = np.poly1d(coeffs[::-1])
 
     def ComputeQuinticCoeffs(cls, t0, t1, q0, q1, v0, v1, a0, a1):
         T = t1 - t0
@@ -41,12 +42,12 @@ class PolynomialQuintic:
     def check_constraints(self, T):
         # 构造临时多项式系数以进行检查
         coeffs = self.ComputeQuinticCoeffs(self.t0, self.t0 + T, self.q0, self.q1, self.v0, self.v1, self.a0, self.a1)
-        poly = np.poly1d(coeffs[::-1])
+        self.poly = np.poly1d(coeffs[::-1])
 
         # 检查最大加速度和最大速度约束
         t = np.linspace(self.t0, self.t0 + T, 100)
-        accs = np.polyval(np.polyder(poly, 2), t)
-        vels = np.polyval(np.polyder(poly, 1), t)
+        accs = np.polyval(np.polyder(self.poly, 2), t)
+        vels = np.polyval(np.polyder(self.poly, 1), t)
 
         max_acc_current = max(abs(accs))
         max_vel_current = max(abs(vels))
@@ -72,7 +73,7 @@ class PolynomialQuintic:
         return T_max
 
 # 示例使用
-t0 = 0
+tmax = 0
 q0 = 0
 q1 = 10
 v0 = 0
@@ -82,10 +83,10 @@ a1 = 0
 max_acc = 1
 max_vel = 2
 
-poly = PolynomialQuintic(t0, q0, q1, v0, v1, a0, a1, max_acc, max_vel)
+poly = PolynomialQuintic(tmax, q0, q1, v0, v1, a0, a1, max_acc, max_vel)
 
 # 生成时间点
-t = np.linspace(t0, poly.t1, 100)
+t = np.linspace(0, poly.t1, 100)
 
 # 生成轨迹
 p = poly.poly(t)
