@@ -73,7 +73,7 @@ class PolynomialQuintic:
         return T_max
 
 # 示例使用
-t0 = 0
+tmax = 0
 q0 = 0
 q1 = 10
 v0 = 0
@@ -83,10 +83,10 @@ a1 = 0
 max_acc = 1
 max_vel = 2
 
-poly = PolynomialQuintic(t0, q0, q1, v0, v1, a0, a1, max_acc, max_vel)
+poly = PolynomialQuintic(tmax, q0, q1, v0, v1, a0, a1, max_acc, max_vel)
 
 # 生成时间点
-t = np.linspace(t0, poly.t1, 100)
+t = np.linspace(0, poly.t1, 100)
 
 # 生成轨迹
 p = poly.poly(t)
